@@ -1,0 +1,2 @@
+﻿  Sudoku_Util.cpp
+C:\opencv-3.2.0-vc14\opencv\new_build\install\include\opencv2\highgui\highgui.hpp(48): fatal error C1083: Cannot open include file: 'opencv2/highgui.hpp': No such file or directory
