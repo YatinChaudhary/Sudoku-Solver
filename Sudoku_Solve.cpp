@@ -10,6 +10,21 @@ Sudoku_Solve::Sudoku_Solve()
 	maxdistance = 0;
 	clearance = 3;
 	sudo_size = 9;
+
+	kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+
+	// windows names
+	w_sudoku = "Sudoku";
+	w_gaussian = "Gaussian";
+	w_outer_box = "Outer box";
+	w_contour_box = "Contour box";
+	w_undistorted = "Undistorted";
+
+	max_area = -1;
+	dim = 0;
+
+	GetCurrentDirectory(MAX_PATH_, pth);
+	cwd_path.operator=(pth);
 }
 
 
@@ -23,22 +38,47 @@ Sudoku_Solve::~Sudoku_Solve()
 //					Member Functions
 //----------------------------------------------------------------------------------
 
+void Sudoku_Solve::test()
+{
+	init();
+
+	cv::waitKey(2000);
+
+	blurring_and_thresholding();
+
+	cv::waitKey(2000);
+
+	blob_detection();
+
+	cv::waitKey(2000);
+
+	contour();
+
+	cv::waitKey(2000);
+
+	extract_sudoku();
+
+	cv::waitKey(2000);
+
+	get_all_digits();
+}
+
 void Sudoku_Solve::init()
 {
 	//Read the image file
-	cv::Mat sudoku = cv::imread("Sudoku_4.jpg", 0);
+	sudoku = cv::imread("Sudoku_Images/Sudoku_4.jpg", 0);
 
 	//Create windows
-	cv::namedWindow("Sudoku", CV_WINDOW_AUTOSIZE);
-	cv::namedWindow("Gaussian", CV_WINDOW_AUTOSIZE);
-	cv::namedWindow("Outer_box", CV_WINDOW_AUTOSIZE);
-	cv::namedWindow("contour_box", CV_WINDOW_AUTOSIZE);
+	cv::namedWindow(w_sudoku, CV_WINDOW_AUTOSIZE);
+	cv::namedWindow(w_gaussian, CV_WINDOW_AUTOSIZE);
+	cv::namedWindow(w_outer_box, CV_WINDOW_AUTOSIZE);
+	cv::namedWindow(w_contour_box, CV_WINDOW_AUTOSIZE);
 
 	//Show the original image
-	cv::imshow("Sudoku", sudoku);
+	cv::imshow(w_sudoku, sudoku);
 
 	//Create boxes for outer box of sudoku and blurred image
-	cv::Mat sudoku_box = cv::Mat::zeros(sudoku.size(), sudoku.type());
+	sudoku_box = cv::Mat::zeros(sudoku.size(), sudoku.type());
 }
 
 void Sudoku_Solve::blurring_and_thresholding()
@@ -47,25 +87,21 @@ void Sudoku_Solve::blurring_and_thresholding()
 	GaussianBlur(sudoku, gauss, cv::Size(11, 11), 0, 0);
 
 	//Checking blurring
-	cv::imshow("Gaussian", gauss);
+	cv::imshow(w_gaussian, gauss);
 
 	//Applying thresholding
 	cv::adaptiveThreshold(gauss, sudoku_box, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 11, 3);
-	medianBlur(sudoku_box, sudoku_box, 3);
-	bitwise_not(sudoku_box, sudoku_box);
-	kernel = (cv::Mat_<uchar>(3, 3) << 0, 1, 0, 1, 1, 1, 0, 1, 0);
-	dilate(sudoku_box, sudoku_box, kernel);
-	imshow("Outer_box", sudoku_box);
+	cv::medianBlur(sudoku_box, sudoku_box, 3);
+	cv::bitwise_not(sudoku_box, sudoku_box);
+	//kernel = (cv::Mat_<uchar>(3, 3) << 0, 1, 0, 1, 1, 1, 0, 1, 0);
+	cv::erode(sudoku_box, sudoku_box, kernel);
+	cv::dilate(sudoku_box, sudoku_box, kernel);
+	cv::imshow(w_outer_box, sudoku_box);
 }
 
 void Sudoku_Solve::blob_detection()
 {
 	//Blob Detection - Filling of all white space
-
-	//int count=0;
-	int max = -1;
-
-	cv::Point maxPt;
 
 	for (int y = 0; y<sudoku_box.size().height; y++) {
 		uchar *row = sudoku_box.ptr(y);
@@ -73,18 +109,18 @@ void Sudoku_Solve::blob_detection()
 		for (int x = 0; x<sudoku_box.size().width; x++) {
 
 			if (row[x] >= 128) {
-				int area = floodFill(sudoku_box, cv::Point(x, y), CV_RGB(0, 0, 64));
+				int area = cv::floodFill(sudoku_box, cv::Point(x, y), CV_RGB(0, 0, 64));
 
-				if (area>max) {
-					maxPt = cv::Point(x, y);
-					max = area;
+				if (area>max_area) {
+					max_pt = cv::Point(x, y);
+					max_area = area;
 				}
 			}
 		}
 	}
 
 	//Turn biggest blob white
-	floodFill(sudoku_box, maxPt, CV_RGB(0, 0, 255));
+	cv::floodFill(sudoku_box, max_pt, CV_RGB(0, 0, 255));
 
 	//Turning every other blob to black
 	for (int y = 0; y<sudoku_box.size().height; y++) {
@@ -92,14 +128,14 @@ void Sudoku_Solve::blob_detection()
 
 		for (int x = 0; x<sudoku_box.size().width; x++) {
 
-			if (row[x] == 64 && x != maxPt.x && y != maxPt.y) {
-				floodFill(sudoku_box, cv::Point(x, y), CV_RGB(0, 0, 0));
+			if (row[x] == 64 && x != max_pt.x && y != max_pt.y) {
+				cv::floodFill(sudoku_box, cv::Point(x, y), CV_RGB(0, 0, 0));
 			}
 		}
 	}
 	//Eroding the image as we have dilated it earlier to restore the original image
-	erode(sudoku_box, sudoku_box, kernel);
-	imshow("Outer_box", sudoku_box);
+	
+	cv::imshow(w_outer_box, sudoku_box);
 }
 
 void Sudoku_Solve::contour()
@@ -107,10 +143,12 @@ void Sudoku_Solve::contour()
 	//Creating a bounding box around sudoku by detecting the biggest contour
 	con = cv::Mat::zeros(sudoku.size(), sudoku.type());
 
-	findContours(sudoku_box, contours, heirarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-	drawContours(con, contours, 0, cv::Scalar(128, 128, 255), 1, CV_AA, cv::noArray(), 2);
-	approxPolyDP(contours[0], bounding_box, 10, true);
-	bounding_box = s_util.order_rect_corners(bounding_box);
+	cv::findContours(sudoku_box, contours, heirarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+	cv::drawContours(con, contours, 0, cv::Scalar(128, 128, 255), 1, CV_AA, cv::noArray(), 2);
+	cv::approxPolyDP(contours[0], bounding_box, 10, true);
+
+	s_util.order_rect_corners(bounding_box);
+
 	k = bounding_box.size();
 	maxdistance = 0;
 
@@ -118,11 +156,11 @@ void Sudoku_Solve::contour()
 	{
 		double dist(0);
 		if (i != k - 1) {
-			line(con, cv::Point(bounding_box[i].x, bounding_box[i].y), cv::Point(bounding_box[i + 1].x, bounding_box[i + 1].y), CV_RGB(0, 0, 255), 1, CV_AA);
+			cv::line(con, cv::Point(bounding_box[i].x, bounding_box[i].y), cv::Point(bounding_box[i + 1].x, bounding_box[i + 1].y), CV_RGB(0, 0, 255), 1, CV_AA);
 			dist = cv::norm(bounding_box[i] - bounding_box[i + 1]);
 		}
 		else {
-			line(con, cv::Point(bounding_box[k - 1].x, bounding_box[k - 1].y), cv::Point(bounding_box[0].x, bounding_box[0].y), CV_RGB(0, 0, 255), 1, CV_AA);
+			cv::line(con, cv::Point(bounding_box[k - 1].x, bounding_box[k - 1].y), cv::Point(bounding_box[0].x, bounding_box[0].y), CV_RGB(0, 0, 255), 1, CV_AA);
 			dist = cv::norm(bounding_box[k - 1] - bounding_box[0]);
 		}
 		if (dist > maxdistance)
@@ -133,7 +171,7 @@ void Sudoku_Solve::contour()
 	maxdistance -= (maxdistance % 9);
 	std::cout << "Total no of bounding box points: " << k << "\n";
 	std::cout << "Dimension of extracted sudoku: " << maxdistance << "\n";
-	cv::imshow("contour_box", con);
+	cv::imshow(w_contour_box, con);
 }
 
 void Sudoku_Solve::extract_sudoku()
@@ -153,47 +191,53 @@ void Sudoku_Solve::extract_sudoku()
 	src[3] = bounding_box[3];
 
 	//Mat undistorted = Mat(Size(maxdistance, maxdistance), sudoku.type());
-	cv::Mat undistorted = cv::Mat(cv::Size(maxdistance, maxdistance), CV_8UC1);
+	undistorted = cv::Mat(cv::Size(maxdistance, maxdistance), CV_8UC1);
 
 	cv::warpPerspective(sudoku, undistorted, cv::getPerspectiveTransform(src, dst), cv::Size(maxdistance, maxdistance));
-	cv::imwrite("/home/yatin/workspace/Sudoku/Extract_Sudoku.tif", undistorted);
+	cv::String path_ = cwd_path + "/Sudoku_Images/Extract_Sudoku.tif";
+	cv::imwrite(path_, undistorted);
 	cv::GaussianBlur(undistorted, undistorted, cv::Size(5, 5), 0, 0);
 	cv::adaptiveThreshold(undistorted, undistorted, 255, cv::ADAPTIVE_THRESH_GAUSSIAN_C, cv::THRESH_BINARY, 3, 2);
 	//threshold(undistorted, undistorted, 127, 255, THRESH_BINARY);
-	//erode(undistorted,undistorted,kernel);
-	//dilate(undistorted,undistorted,kernel);
-	bitwise_not(undistorted, undistorted);
+	cv::erode(undistorted,undistorted,kernel);
+	cv::dilate(undistorted,undistorted,kernel);
+	cv::bitwise_not(undistorted, undistorted);
 
 	//Showing extracted sudoku
-	cv::namedWindow("Undistorted", CV_WINDOW_AUTOSIZE);
+	cv::namedWindow(w_undistorted, CV_WINDOW_AUTOSIZE);
 	//namedWindow("180x180", CV_WINDOW_AUTOSIZE);
-	cv::imshow("Undistorted", undistorted);
+	cv::imshow(w_undistorted, undistorted);
 	std::cout << "Undistorted size: " << undistorted.size() << "\n";
 }
 
 void Sudoku_Solve::get_all_digits()
 {
 	//Retrieve all digits in extracted sudoku
-	int dim = ((maxdistance / sudo_size) - (2 * clearance));
-	cv::Mat sudoku_mat = cv::Mat(cv::Size(81, pow(dim, 2)), sudoku.type());
-	s_util.get_digits(undistorted, sudoku_mat, dim, clearance);
-	std::cout << "bhosad\n";
+	dim = ((maxdistance / sudo_size) - (2 * clearance));
+	sudoku_mat = cv::Mat(cv::Size(81, pow(dim, 2)), sudoku.type());
+	s_util.get_digits(undistorted, sudoku_mat, dim, clearance, cwd_path);
+	MessageBox(NULL, "chk-1", "chk-1", 0);
+	//std::cout << "bhosad\n";
 
 	//Preprocess all digits obtained
-	cv::Mat x = cv::imread("/home/yatin/workspace/Sudoku/Digits/Image_2_8.tif", CV_8UC1);
-	std::cout << "Type of extracted digit is: " << x.type() << "and" << x.size() << "\n";
-	std::cout << "Type of sudoku is: " << sudoku.type() << "and" << sudoku.size() << "\n";
+	cv::String path_ = cwd_path + "/Digits/Image_2_8.tif";
+	cv::Mat x = cv::imread(path_, CV_8UC1);
+	//std::cout << "Type of extracted digit is: " << x.type() << "and" << x.size() << "\n";
+	//std::cout << "Type of sudoku is: " << sudoku.type() << "and" << sudoku.size() << "\n";
 	s_util.test(x);
 	//cout << "Digit: " << x << "\n";
-
+	/*
 	char name[100];
+	cv::String digit_path;
 	for (unsigned int i = 1; i <= 9; i++)
 	{
 		for (unsigned int j = 1; j <= 9; j++)
 		{
-			sprintf(name, "/home/yatin/workspace/Sudoku/Digits/Image_%d_%d.tif", i, j);
-			cv::Mat digit = cv::imread(name, CV_8UC1);
+			digit_path = cwd_path + "/Digits/Image_" + std::to_string(i) + "_" + std::to_string(j) + ".tif";
+			//sprintf(name, "/home/yatin/workspace/Sudoku/Digits/Image_%d_%d.tif", i, j);
+			cv::Mat digit = cv::imread(digit_path, CV_8UC1);
 			s_util.prep_digit(digit, i, j);
 		}
 	}
+	*/
 }

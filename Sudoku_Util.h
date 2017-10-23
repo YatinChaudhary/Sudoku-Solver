@@ -37,10 +37,10 @@ public:
 	virtual ~Sudoku_Util();
 
 private:
-	std::vector<cv::Point> order_rect_corners(std::vector<cv::Point> corners);
+	void order_rect_corners(std::vector<cv::Point>& corners);
 	void order_points_by_rows(std::vector<cv::Point>& points);
 	void shift_points(std::vector<cv::Point>& points);
-	void get_digits(cv::Mat img, cv::Mat x, int max, int clr);
+	void get_digits(cv::Mat& img, cv::Mat& x, int max, int clr, cv::String pth_);
 	void prep_digit(cv::Mat img, int a, int b);
 	void draw_line(cv::Vec2f line, cv::Mat &img, cv::Scalar rgb);
 	unsigned int recognize_digit();												// Recognize the digits

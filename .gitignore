@@ -1,2 +1,4 @@
 Browse.VC.opendb
-*.ipch
+.vs/
+MyProps.props
+x64/

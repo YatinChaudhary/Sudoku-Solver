@@ -37,7 +37,7 @@ void Sudoku_Util::order_points_by_rows(std::vector<cv::Point>& points)
 	}
 }
 
-std::vector<cv::Point> Sudoku_Util::order_rect_corners(std::vector<cv::Point> corners)
+void Sudoku_Util::order_rect_corners(std::vector<cv::Point>& corners)
 {
 	status = errorCode::NO_ERROR;
 	try
@@ -88,7 +88,7 @@ std::vector<cv::Point> Sudoku_Util::order_rect_corners(std::vector<cv::Point> co
 		}
 		std::cout << "out\n";
 		delete[] d;
-		return ordCorners;
+		corners.operator=(ordCorners);
 	}
 	catch (const std::exception& ex)
 	{
@@ -116,19 +116,20 @@ void Sudoku_Util::shift_points(std::vector<cv::Point>& points)
 	}
 }
 
-void Sudoku_Util::get_digits(cv::Mat img, cv::Mat x, int max, int clr)
+void Sudoku_Util::get_digits(cv::Mat& img, cv::Mat& x, int max, int clr, cv::String pth_)
 {
 	status = errorCode::NO_ERROR;
 	try
 	{
-		std::cout << "inside get_digits\n";
+		//std::cout << "inside get_digits\n";
 		int size = (img.size().height) / 9;
 		int a = clr;
 		int i, j, k, l;
-		std::cout << "cp1\n";
-		cv::Mat digits = cv::Mat(cv::Size(81, pow(max, 2)), img.type());
+		//std::cout << "cp1\n";
+		//cv::Mat digits = cv::Mat(cv::Size(81, pow(max, 2)), img.type());
 		cv::Mat digit = cv::Mat(cv::Size(size - 2 * a, size - 2 * a), img.type());
-		std::cout << "cp2\n";
+		//std::cout << "cp2\n";
+		cv::String d_path;
 		for (i = 0; i<9; i++) {
 			for (j = 0; j<9; j++) {
 				for (k = a; k<size - a; k++) {
@@ -137,16 +138,17 @@ void Sudoku_Util::get_digits(cv::Mat img, cv::Mat x, int max, int clr)
 						x.at<uchar>(cv::Point(9 * i + j, size*(k - a) + (l - a))) = img.at<uchar>(cv::Point(size*i + k, size*j + l));
 						//cout << "cp4\n";
 						digit.at<uchar>(cv::Point((k - a), (l - a))) = img.at<uchar>(cv::Point(size*i + k, size*j + l));
-						std::cout << i << " " << j << " " << k << " " << l << "\n";
+						//std::cout << i << " " << j << " " << k << " " << l << "\n";
 					}
 				}
-				std::ostringstream name;
-				name << "/home/yatin/workspace/Sudoku/Digits/Image_" << (j + 1) << "_" << (i + 1) << ".tif";
-				cv::imwrite(name.str(), digit);
+				//std::ostringstream name;
+				//name << "/home/yatin/workspace/Sudoku/Digits/Image_" << (j + 1) << "_" << (i + 1) << ".tif";
+				d_path = pth_ + "/Digits/Image_" + std::to_string(i) + "_" + std::to_string(j) + ".tif";
+				cv::imwrite(d_path, digit);
 			}
 		}
 		//cout << "cp3\n";
-		std::cout << "Out of get_digits\n";
+		//std::cout << "Out of get_digits\n";
 		//return digits;
 	}
 	catch (const std::exception& ex)
@@ -269,13 +271,14 @@ unsigned int Sudoku_Util::recognize_digit()
 	status = errorCode::NO_ERROR;
 	try
 	{
-
+		return 0;
 	}
 	catch (const std::exception& ex)
 	{
 		status = errorCode::ERROR;
 		log_file << "Sudoku_Util::recognize_digit: " << ex.what() << "\n\n";
 	}
+	return 0;
 }
 
 void Sudoku_Util::test(cv::Mat img)
@@ -286,15 +289,15 @@ void Sudoku_Util::test(cv::Mat img)
 		cv::Mat gray = cv::Mat(img.size(), img.type());
 		cv::Mat cont = cv::Mat::zeros(img.size(), img.type());
 		//cvtColor(img, gray, CV_BGR2GRAY);
-		threshold(img, gray, 127, 255, cv::THRESH_BINARY);
-		std::cout << "Digit: " << gray << "\n";
+		cv::threshold(img, gray, 127, 255, cv::THRESH_BINARY);
+		//std::cout << "Digit: " << gray << "\n";
 
 		std::vector<std::vector<cv::Point>> contours;
 		std::vector<cv::Vec4i> heirarchy;
 		cv::findContours(gray, contours, heirarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE); //Try RETR_TREE also
 		cv::drawContours(cont, contours, -1, cv::Scalar(0, 0, 255), 1, 8, heirarchy, 1);
-		std::cout << "\n Number of contours" << contours.size() << " \n";
-		std::cout << "Digit: " << cont << "\n";
+		//std::cout << "\n Number of contours" << contours.size() << " \n";
+		//std::cout << "Digit: " << cont << "\n";
 		cv::waitKey();
 	}
 	catch (const std::exception& ex)
