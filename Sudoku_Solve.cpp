@@ -8,7 +8,7 @@ Sudoku_Solve::Sudoku_Solve()
 
 	k = 0;
 	maxdistance = 0;
-	clearance = 3;
+	clearance = 2;
 	sudo_size = 9;
 
 	kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
@@ -169,8 +169,6 @@ void Sudoku_Solve::contour()
 	}
 
 	maxdistance -= (maxdistance % 9);
-	std::cout << "Total no of bounding box points: " << k << "\n";
-	std::cout << "Dimension of extracted sudoku: " << maxdistance << "\n";
 	cv::imshow(w_contour_box, con);
 }
 
@@ -205,39 +203,31 @@ void Sudoku_Solve::extract_sudoku()
 
 	//Showing extracted sudoku
 	cv::namedWindow(w_undistorted, CV_WINDOW_AUTOSIZE);
-	//namedWindow("180x180", CV_WINDOW_AUTOSIZE);
 	cv::imshow(w_undistorted, undistorted);
-	std::cout << "Undistorted size: " << undistorted.size() << "\n";
 }
 
 void Sudoku_Solve::get_all_digits()
 {
 	//Retrieve all digits in extracted sudoku
-	dim = ((maxdistance / sudo_size) - (2 * clearance));
-	sudoku_mat = cv::Mat(cv::Size(81, pow(dim, 2)), sudoku.type());
+	dim = (maxdistance / sudo_size);
+	sudoku_mat = cv::Mat(cv::Size(81, pow(dim-2*clearance, 2)), sudoku.type());
+	//cv::Mat image = cv::imread("Sudoku_Images/Extract_Sudoku.tif", CV_8UC1);
+	//std::string test = std::to_string(image.rows) + "   " + std::to_string(image.cols);
 	s_util.get_digits(undistorted, sudoku_mat, dim, clearance, cwd_path);
-	MessageBox(NULL, "chk-1", "chk-1", 0);
-	//std::cout << "bhosad\n";
 
 	//Preprocess all digits obtained
 	cv::String path_ = cwd_path + "/Digits/Image_2_8.tif";
 	cv::Mat x = cv::imread(path_, CV_8UC1);
-	//std::cout << "Type of extracted digit is: " << x.type() << "and" << x.size() << "\n";
-	//std::cout << "Type of sudoku is: " << sudoku.type() << "and" << sudoku.size() << "\n";
 	s_util.test(x);
-	//cout << "Digit: " << x << "\n";
-	/*
-	char name[100];
+	
 	cv::String digit_path;
 	for (unsigned int i = 1; i <= 9; i++)
 	{
 		for (unsigned int j = 1; j <= 9; j++)
 		{
-			digit_path = cwd_path + "/Digits/Image_" + std::to_string(i) + "_" + std::to_string(j) + ".tif";
-			//sprintf(name, "/home/yatin/workspace/Sudoku/Digits/Image_%d_%d.tif", i, j);
+			digit_path = "Digits/Image_" + std::to_string(i) + "_" + std::to_string(j) + ".tif";
 			cv::Mat digit = cv::imread(digit_path, CV_8UC1);
 			s_util.prep_digit(digit, i, j);
 		}
 	}
-	*/
 }

@@ -3,6 +3,12 @@
 Sudoku_Util::Sudoku_Util()
 {
 	log_file.open("log.txt");
+	if (log_file.is_open()) { 
+		//std::cout << "File not open\n"; 
+	}
+	else { 
+		//std::cout << "File open\n"; 
+	}
 }
 
 
@@ -116,40 +122,35 @@ void Sudoku_Util::shift_points(std::vector<cv::Point>& points)
 	}
 }
 
-void Sudoku_Util::get_digits(cv::Mat& img, cv::Mat& x, int max, int clr, cv::String pth_)
+void Sudoku_Util::get_digits(cv::Mat& img, cv::Mat& s_mat, int dim, int clr, cv::String pth_)
 {
 	status = errorCode::NO_ERROR;
 	try
 	{
-		//std::cout << "inside get_digits\n";
-		int size = (img.size().height) / 9;
-		int a = clr;
-		int i, j, k, l;
-		//std::cout << "cp1\n";
-		//cv::Mat digits = cv::Mat(cv::Size(81, pow(max, 2)), img.type());
-		cv::Mat digit = cv::Mat(cv::Size(size - 2 * a, size - 2 * a), img.type());
-		//std::cout << "cp2\n";
+		int height = img.rows;
+		int width = img.cols;
+		int i = 0,
+			j = 0,
+			dy = dim,
+			dx = dim;
+		dim -= 2*clr;			// dimension of ROI
+
+		cv::Mat digit;
 		cv::String d_path;
-		for (i = 0; i<9; i++) {
-			for (j = 0; j<9; j++) {
-				for (k = a; k<size - a; k++) {
-					for (l = a; l<size - a; l++) {
-						//cout << "cp3\n";
-						x.at<uchar>(cv::Point(9 * i + j, size*(k - a) + (l - a))) = img.at<uchar>(cv::Point(size*i + k, size*j + l));
-						//cout << "cp4\n";
-						digit.at<uchar>(cv::Point((k - a), (l - a))) = img.at<uchar>(cv::Point(size*i + k, size*j + l));
-						//std::cout << i << " " << j << " " << k << " " << l << "\n";
-					}
-				}
-				//std::ostringstream name;
-				//name << "/home/yatin/workspace/Sudoku/Digits/Image_" << (j + 1) << "_" << (i + 1) << ".tif";
+
+		for (int y = 0; y < height; y += dy)
+		{
+			j = 0;
+			for (int x = 0; x < width; x += dx)
+			{
+				cv::Rect rect = cv::Rect(x + clr, y + clr, dim, dim);
+				digit = cv::Mat(img, rect);
 				d_path = pth_ + "/Digits/Image_" + std::to_string(i) + "_" + std::to_string(j) + ".tif";
 				cv::imwrite(d_path, digit);
+				j++;
 			}
+			i++;
 		}
-		//cout << "cp3\n";
-		//std::cout << "Out of get_digits\n";
-		//return digits;
 	}
 	catch (const std::exception& ex)
 	{
@@ -163,42 +164,36 @@ void Sudoku_Util::prep_digit(cv::Mat img, int a, int b)
 	status = errorCode::NO_ERROR;
 	try
 	{
-		std::cout << "inside prep_digit\n";
-		//Mat filt = cv::Mat(img.size(), img.type());
-		//Mat lar_con = cv::Mat(img.size(), img.type());
-		//Mat show = cv::Mat(cv::Size(180,180), img.type());
+		cv::Mat tmp;
 		cv::Mat org = cv::Mat(cv::Size(100, 100), img.type());
-		cv::namedWindow("Showdigit", CV_WINDOW_AUTOSIZE);
-		//cv::namedWindow("orgdigit", CV_WINDOW_AUTOSIZE);
-		//cv::namedWindow("Showcanny", CV_WINDOW_AUTOSIZE);
+		cv::threshold(img, tmp, 150, 255, cv::THRESH_BINARY);
 
 		//Floodfilling from sides to remove extra whitespace
 		int i, j;
-		for (i = 0; i<img.size().height; i++) {
-			floodFill(img, cv::Point(0, i), CV_RGB(0, 0, 0));
-			floodFill(img, cv::Point(img.size().width - 1, i), CV_RGB(0, 0, 0));
+		for (i = 0; i<tmp.size().height; i++) {
+			floodFill(tmp, cv::Point(0, i), cv::Scalar(0));
+			floodFill(tmp, cv::Point(tmp.size().width - 1, i), cv::Scalar(0));
 		}
 
-		for (i = 0; i<img.size().width; i++) {
-			floodFill(img, cv::Point(i, 0), CV_RGB(0, 0, 0));
-			floodFill(img, cv::Point(i, img.size().height - 1), CV_RGB(0, 0, 0));
+		for (i = 0; i<tmp.size().width; i++) {
+			floodFill(tmp, cv::Point(i, 0), cv::Scalar(0));
+			floodFill(tmp, cv::Point(i, tmp.size().height - 1), cv::Scalar(0));
 		}
-
-		for (i = 0; i<img.size().height; i++) {
-			for (j = 0; j<img.size().width; j++) {
-				if (img.at<uchar>(cv::Point(j, i)) <= 250)
-					floodFill(img, cv::Point(j, i), CV_RGB(0, 0, 0));
+		/*
+		for (i = 0; i<tmp.size().height; i++) {
+			for (j = 0; j<tmp.size().width; j++) {
+				if (tmp.at<uchar>(cv::Point(j, i)) <= 250)
+					floodFill(tmp, cv::Point(j, i), cv::Scalar(0));
 			}
 		}
-
-		std::ostringstream name;
-		name << "/home/yatin/workspace/Sudoku/Digits/Image_" << a << "_" << b << ".tif";
-		resize(img, org, org.size(), 0, 0, CV_INTER_LINEAR);
-		cv::Mat kernel = (cv::Mat_<uchar>(3, 3) << 0, 1, 0, 1, 1, 1, 0, 1, 0);
+		*/
+		cv::String name;
+		name = "Digits_Prep/Image_" + std::to_string(a) + "_" + std::to_string(b) + ".tif";
+		cv::resize(tmp, org, org.size(), 0, 0, CV_INTER_CUBIC);
+		cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 		erode(org, org, kernel);
 		dilate(org, org, kernel);
-		//imshow("Showdigit",org);
-		cv::imwrite(name.str(), org);
+		cv::imwrite(name, org);
 
 		/*
 		bilateralFilter(img,filt,3,5,5);
@@ -235,7 +230,6 @@ void Sudoku_Util::prep_digit(cv::Mat img, int a, int b)
 		waitKey(0);
 		destroyAllWindows();
 		*/
-		std::cout << "Out of prep_digit\n";
 	}
 	catch (const std::exception& ex)
 	{
@@ -286,19 +280,25 @@ void Sudoku_Util::test(cv::Mat img)
 	status = errorCode::NO_ERROR;
 	try
 	{
-		cv::Mat gray = cv::Mat(img.size(), img.type());
-		cv::Mat cont = cv::Mat::zeros(img.size(), img.type());
-		//cvtColor(img, gray, CV_BGR2GRAY);
-		cv::threshold(img, gray, 127, 255, cv::THRESH_BINARY);
-		//std::cout << "Digit: " << gray << "\n";
+		int thresh = 100;
+		cv::Mat gray;
+		cv::Mat edges;
+
+		//cv::cvtColor(img, gray, CV_BGR2GRAY);
+		cv::blur(img, gray, cv::Size(3, 3));
+		cv::Canny(gray, edges, thresh, thresh * 2, 3);
 
 		std::vector<std::vector<cv::Point>> contours;
 		std::vector<cv::Vec4i> heirarchy;
-		cv::findContours(gray, contours, heirarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE); //Try RETR_TREE also
-		cv::drawContours(cont, contours, -1, cv::Scalar(0, 0, 255), 1, 8, heirarchy, 1);
-		//std::cout << "\n Number of contours" << contours.size() << " \n";
-		//std::cout << "Digit: " << cont << "\n";
-		cv::waitKey();
+		cv::findContours(edges, contours, heirarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, cv::Point(0, 0)); //Try RETR_TREE also
+		
+		cv::Mat cont = cv::Mat::zeros(edges.size(), CV_8UC1);
+		
+		cv::drawContours(cont, contours, -1, cv::Scalar(255), 1, 8, heirarchy, 1, cv::Point(0, 0));
+		
+		cv::imwrite("test/cont.tif", cont);
+		cv::imwrite("test/gray.tif", gray);
+		cv::imwrite("test/edges.tif", edges);
 	}
 	catch (const std::exception& ex)
 	{
